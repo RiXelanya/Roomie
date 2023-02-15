@@ -26,6 +26,10 @@ Routes.route("/tenants").get(async function (req, res) {
   }
 });
 
+Routes.route("/update/checkin").get(function(req, res){
+  res.sendFile('checkin.html');
+});
+
 Routes.route("/update/checkin").post(function (req, res) {
   // tenant checkin
   if(req.session.user) {
@@ -54,6 +58,10 @@ Routes.route("/update/checkin").post(function (req, res) {
   }
 });
 
+Routes.route("/update/checkout").get(function(req, res){
+  res.sendFile('checkout.html');
+});
+
 Routes.route("/update/checkout").post(function (req, res) {
   if(req.session.user) {
   const dbConnect = dbo.getDb();
@@ -78,30 +86,34 @@ Routes.route("/update/checkout").post(function (req, res) {
   }
 });
 
-Routes.get('/login', function(req, res){
-  res.render('login');
+Routes.route('/login').get(function(req, res){
+  res.sendFile('login.html');
 });
 
-Routes.post('/login', function(req, res){
+Routes.route('/login').post(function(req, res){
   console.log(Users);
   if(!req.body.id || !req.body.password){
-     res.render('login', {message: "Please enter both username and password"});
+    res.sendFile('login.html');
   } else {
         if(username === req.body.username && password === req.body.password){
            req.session.user = admin;
-           res.redirect('/home');
+           res.redirect('/admin');
         }
         else {
-           res.render('login', {message: "Invalid credentials!"});
+          res.send('<p>Invalid credential <br></br><a href="/login"> go back </a></p>')
         }
   }
 });
 
-Routes.get('/logout', function(req, res){
+Routes.route('/logout').get(function(req, res){
   req.session.destroy(function(){
      console.log("admin has logged out.")
   });
   res.redirect('/login');
+});
+
+Routes.route('/admin').get(function(req, res){
+  res.sendFile('admin.html');
 });
 
 module.exports = Routes; // export routes for usage by server application
