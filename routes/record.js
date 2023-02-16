@@ -2,8 +2,8 @@ const express = require("express");
 const Routes = express.Router();
 const dbo = require("../db/conn");
 
-const username = admin ; // admin username
-const password = kouropalates ; // admin password
+const username = "admin" ; // admin username
+const password = "kouropalates" ; // admin password
 
 Routes.route("/tenants").get(async function (req, res) {
   if(req.session.user) { // check if admin has logged in
