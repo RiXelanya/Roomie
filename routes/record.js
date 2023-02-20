@@ -1,25 +1,25 @@
 const express = require("express");
 const Routes = express.Router();
-const dbo = require("../db/conn");
-
 const username = "admin" ; // admin username
 const password = "kouropalates" ; // admin password
+const Pool = require('pg').Pool
+const pool = new Pool({
+  user: 'adminroomie',
+  host: 'localhost',
+  database: 'roomie',
+  password: 'kouropalates',
+  port: 5432,
+})
 
 Routes.route("/tenants").get(async function (req, res) {
+  // get tenant list
   if(req.session.user) { // check if admin has logged in
-  const dbConnect = dbo.getDb();
-
-  dbConnect
-    .collection("room")
-    .find({availability: false}).sort({_id: 1}) // find all occupied room room and sort by room id
-    .project({_id: 1, name: 1}) // then only show room id and tenant name
-    .toArray(function (err, result) {
-      if (err) {
-        res.status(400).send("Error fetching Tenant List");
-     } else {
-        res.json(result);
+    pool.query('SELECT * FROM tenant ORDER BY room ASC', (error, results) => {
+      if (error) {
+        throw error
       }
-    });
+      response.status(200).json(results.rows)
+    })
   }
   else {
     res.redirect("/login"); // accessing this page without logging in would cause redirection to login page
@@ -33,21 +33,13 @@ Routes.route("/update/add").get(function(req, res){
 Routes.route("/update/add").post(function (req, res) {
   // add new room
   if(req.session.user) { // make sure admin has logged in
-  const dbConnect = dbo.getDb(); // connect to database
-  const matchDocument = {
-    _id: req.body.id,
-    availability: true
-  }; // json info of the document to be modified
-  dbConnect
-    .collection("room")
-    .insertOne(matchDocument, function (err, result) { // replace the document
-      if (err) {
-        res.status(400).send("Error Adding room!");
-      } else {
-        console.log(`Room ${req.body.id} has been added`);
-        res.status(204).send();
+    const id = req.body.id ;
+    pool.query('INSERT INTO room (room_id, available) VALUES ($1, TRUE) RETURNING *', [id], (error, results) => {
+      if (error) {
+        throw error
       }
-    });
+      response.status(201).send(`Room added with ID: ${id}`)
+    })
   }
   else {
     res.redirect("/login"); // redirected to login if has not logged in yet
@@ -61,26 +53,21 @@ Routes.route("/update/checkin").get(function(req, res){
 Routes.route("/update/checkin").post(function (req, res) {
   // tenant checkin
   if(req.session.user) { // make sure admin has logged in
-  const dbConnect = dbo.getDb(); // connect to database
-  const matchDocument = {
-    _id: req.body.id,
-    checkin_date: new Date(),
-    name: req.body.name,
-    email: req.body.email,
-    availability: false
-  }; // json info of the document to be modified
-  const filter = {_id: req.body.id} ; // id is used to search for document to be replaced
-  dbConnect
-    .collection("room")
-    .replaceOne(filter , matchDocument, function (err, result) { // replace the document
-      if (err) {
-        res.status(400).send("Error checking in!");
-      } else {
-        console.log(`Room ${req.body.id} has been checked in`);
-        res.status(204).send();
-      }
-    });
-  }
+    const fullname = req.body.name ;
+    const email = req.body.email ;
+    const id = req.body.id ;
+  pool.query('UPDATE room SET available = FALSE WHERE id = $1', [id], (error, results) => {
+    if (error) {
+      throw error ;
+    }
+  })
+  pool.query('INSERT INTO tenant (name, email, room) VALUES ($1, $2, $3) RETURNING *', [fullname, email, id], (error, results) => {
+    if (error) {
+      throw error ;
+    }
+    response.status(201).send(`Tenant has been checked in Room ${id}`);
+  })
+}
   else {
     res.redirect("/login"); // redirected to login if has not logged in yet
   }
@@ -92,22 +79,18 @@ Routes.route("/update/checkout").get(function(req, res){
 
 Routes.route("/update/checkout").post(function (req, res) {
   if(req.session.user) { // verify that admin has logged in
-  const dbConnect = dbo.getDb(); // making connection to database
-  const matchDocument = {
-    _id: req.body.id,
-    availability: true
-  }; // the document info after checkout
-  const filter = {_id: req.body.id} ; // search by room number 
-  dbConnect
-    .collection("room")
-    .replaceOne(filter , matchDocument, function (err, result) { // replace
-      if (err) {
-        res.status(400).send("Error checking out");
-      } else {
-        console.log(`Room ${req.body.id} has been checked out`);
-        res.status(204).send();
-      }
-    });
+  const id = req.body.id ;
+  pool.query('UPDATE room SET available = TRUE WHERE id = $1', [id], (error, results) => {
+    if (error) {
+      throw error ;
+    }
+  })
+  pool.query('DELETE FROM tenant WHERE id = $1', [id], (error, results) => {
+    if (error) {
+      throw error
+    }
+    response.status(200).send(`Room ${id} has been checked out`)
+  })
   }
   else {
     res.redirect("/login"); // redirect to login page if admin has not logged in 
